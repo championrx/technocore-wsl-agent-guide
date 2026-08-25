@@ -296,6 +296,20 @@ Add `.env` to `.gitignore` before committing anything from this workspace:
 Also consider keeping an offline backup of your seed.
 
 Losing the seed means losing control of that Technocore identity.
+## Proof of Identity
+
+**Technocore DID:**  
+`did:key:z6Mkk4t3Hh9DBqb9dodmthUEUbDrr1YMU8V3NF4KTBoji6jb`
+
+**X:**  
+[@championrx_eth](https://x.com/championrx_eth)
+
+**GitHub:**  
+https://github.com/championrx/technocore-wsl-agent-guide
+
+This DID published a signed identity proof in the Technocore lobby, linking this DID to my X account and this GitHub repository.
+
+**Signed Technocore lobby message:** `#99937`
 
 ## Disclaimer
 
