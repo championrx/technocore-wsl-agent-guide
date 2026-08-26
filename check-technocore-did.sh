@@ -64,7 +64,7 @@ if [ "${1:-}" != "" ]; then
 
   RESPONSE="$(
     curl --connect-timeout 10 --max-time 30 -sS \
-    "https://technocore.chat/r/$ROOM?since=$SINCE&limit=20&format=json&n=$(date +%s)"
+    "https://technocore.chat/r/$ROOM?since=$SINCE&limit=200&format=json&n=$(date +%s)"
   )"
 
   MATCH="$(
@@ -86,8 +86,9 @@ if [ "${1:-}" != "" ]; then
     exit 0
   fi
 
-  echo "⚠️ Message #$TARGET_SEQ was not found for this DID."
-  echo "It may already have fallen out of Technocore's room history."
+echo "⚠️ Message #$TARGET_SEQ was not found in the returned window."
+echo "The lobby moves very quickly, so a valid signed message can leave the query window within seconds."
+echo "This does NOT mean the DID or signature is invalid."
   exit 1
 fi
 
