@@ -68,10 +68,16 @@ if [ "${1:-}" != "" ]; then
   )"
 
   MATCH="$(
-    printf '%s' "$RESPONSE" \
-    | grep -F "$DID" \
-    | grep -F "\"seq\": $TARGET_SEQ" || true
-  )"
+  printf '%s' "$RESPONSE" \
+  | jq -c --arg did "$DID" --arg seq "$TARGET_SEQ" \
+    '.. | objects |
+     select(
+       ((.seq? // "") | tostring) == $seq
+       and
+       (.from? // "") == $did
+     )' \
+  | head -n 1
+)"
 
   if [ -n "$MATCH" ]; then
     echo "✅ Signed contribution #$TARGET_SEQ verified."
