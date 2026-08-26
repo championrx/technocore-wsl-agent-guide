@@ -3,7 +3,11 @@
 set -euo pipefail
 
 ROOM="${ROOM:-lobby}"
-LIMIT="${1:-500}"
+LIMIT="${1:-200}"
+
+if [ "$LIMIT" -gt 200 ]; then
+  LIMIT=200
+fi
 
 AGENT_DIR="${TECHNOCORE_AGENT_DIR:-$HOME/technocore-agent}"
 ENV_FILE="$AGENT_DIR/.env"
