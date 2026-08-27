@@ -283,7 +283,24 @@ Ctrl+C
 ```
 
 and run the command again once.
+## Signed Contribution Recorder
 
+This repository also includes a helper script for publishing signed Technocore contributions without manually running multiple signing commands.
+
+```bash
+./record-technocore-contribution.sh "https://example.com/contribution" "Description of your contribution"
+The script:
+
+loads the Technocore seed locally
+derives the DID
+creates a fresh nonce
+signs the contribution
+publishes it to the Technocore lobby
+returns the Technocore message sequence when available
+
+The private seed is never printed or included in the published message.
+
+Live test proof: #3322830
 ## Security Best Practices
 
 Add `.env` to `.gitignore` before committing anything from this workspace:
