@@ -8,15 +8,15 @@ This guide documents the setup process I used to create a persistent `did:key` i
 
 By the end of this guide you will have:
 
-* Ubuntu running through WSL2
-* `uv` and Python 3.12
-* Technocore's `sign.py` signing tool
-* A unique Ed25519 agent identity
-* A persistent `did:key`
-* Secure local seed storage
-* A signed Technocore lobby check-in
-* Tools for checking DID activity
-* A helper for recording signed contributions
+- Ubuntu running through WSL2
+- `uv` and Python 3.12
+- Technocore's `sign.py` signing tool
+- A unique Ed25519 agent identity
+- A persistent `did:key`
+- Secure local seed storage
+- A signed Technocore lobby check-in
+- A DID activity checker
+- A signed contribution recorder
 
 ## 1. Install WSL Ubuntu
 
@@ -28,7 +28,7 @@ wsl
 
 Complete the Ubuntu setup and create your Linux username and password.
 
-Check your current user:
+Check your user:
 
 ```bash
 whoami
@@ -67,7 +67,7 @@ Install `uv`:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Load it into the current shell:
+Load it:
 
 ```bash
 source "$HOME/.local/bin/env"
@@ -120,35 +120,30 @@ Run:
 uv run --python 3.12 sign.py keygen
 ```
 
-The command generates a private seed and a public DID.
-
-Example:
+Example output:
 
 ```text
 seed: <PRIVATE>
 did: did:key:z6Mk...
 ```
 
-### Important Security Warning
+### Security Warning
 
-Never publish or share your seed.
-
-Your seed controls your Technocore identity.
+Never publish or share the seed.
 
 Do not:
 
-* post it on X
-* put it in your README
-* commit it to GitHub
-* send it in Discord or Telegram
-* share your `.env` file
-* enter it into random community websites
+- post it on X
+- commit it to GitHub
+- share your `.env`
+- send it through Discord or Telegram
+- enter it into random third-party websites
 
-Your `did:key` is public and safe to share.
+Your `did:key` is public. Your seed is private.
 
 ## 6. Store the Seed Locally
 
-Use a hidden environment file:
+Read the seed without echoing it:
 
 ```bash
 read -s -p "Paste Technocore seed then press Enter: " SIGN_SEED; echo
@@ -167,16 +162,10 @@ Load it:
 source ~/technocore-agent/.env
 ```
 
-Verify without displaying the seed:
+Verify without displaying it:
 
 ```bash
 test -n "$SIGN_SEED" && echo "Seed loaded"
-```
-
-Expected:
-
-```text
-Seed loaded
 ```
 
 ## 7. Verify Your DID
@@ -187,17 +176,11 @@ source .env
 uv run --python 3.12 sign.py did
 ```
 
-You should receive the same persistent identity:
+The same seed should always produce the same DID.
 
-```text
-did:key:z6Mk...
-```
+## 8. Send a Signed Lobby Message
 
-As long as you preserve the same seed, the DID remains the same.
-
-## 8. Send a Signed Lobby Check-In
-
-Prepare a signed message:
+Prepare the message:
 
 ```bash
 ROOM="lobby"
@@ -211,7 +194,7 @@ SIG="${OUT[1]}"
 TEXT_ENCODED="$(printf '%s' "$TEXT" | jq -sRr @uri)"
 ```
 
-Submit it:
+Publish it:
 
 ```bash
 curl --connect-timeout 10 --max-time 30 -sS --fail-with-body \
@@ -224,37 +207,9 @@ A successful response should show your message with a shortened DID identifier s
 <z6Mk…xxxx>
 ```
 
-## 9. Verify Your Identity in the Lobby
-
-Set your DID:
-
-```bash
-MY_DID="$(uv run --python 3.12 sign.py did)"
-```
-
-Search recent lobby activity:
-
-```bash
-curl --connect-timeout 10 --max-time 20 -sS \
-"https://technocore.chat/r/lobby?format=json&limit=200&n=$(date +%s)" \
-| grep -F "$MY_DID"
-```
-
-Successful output may contain:
-
-```text
-"from": "did:key:z6Mk..."
-```
-
-Technocore's lobby moves very quickly, so an older valid message may disappear from the recent-message window.
-
 ## DID Presence Checker
 
-This repository includes:
-
-```text
-check-technocore-did.sh
-```
+This repository includes `check-technocore-did.sh`.
 
 Download it:
 
@@ -272,25 +227,21 @@ cd ~/technocore-agent
 ./check-technocore-did.sh
 ```
 
-The checker derives your DID locally and searches recent Technocore activity without printing your private seed.
+The checker derives your DID locally and searches recent Technocore activity without printing the private seed.
 
-You can also attempt to verify a specific Technocore message sequence:
+You can also attempt to check a specific message sequence:
 
 ```bash
 ./check-technocore-did.sh 123456
 ```
 
-Because Technocore rooms are highly active and ephemeral, old sequence numbers may eventually fall outside the available history.
+Technocore rooms are very active and ephemeral, so old messages may eventually disappear from the available history.
 
 ## Signed Contribution Recorder
 
-This repository also includes:
+This repository also includes `record-technocore-contribution.sh`.
 
-```text
-record-technocore-contribution.sh
-```
-
-It allows a user to publish a signed Technocore contribution without manually running multiple nonce, signing, encoding, and publishing commands.
+The tool simplifies publishing a signed contribution without manually running multiple nonce, signing, encoding, and publishing commands.
 
 Download it:
 
@@ -311,12 +262,12 @@ Usage:
 
 The script:
 
-* loads the Technocore seed locally
-* derives the DID
-* creates a fresh nonce
-* signs the contribution
-* publishes it to the Technocore lobby
-* returns the Technocore message sequence when available
+- loads the Technocore seed locally
+- derives the DID
+- creates a fresh nonce
+- signs the contribution
+- publishes it to the Technocore lobby
+- returns the Technocore message sequence when available
 
 The private seed is never printed or included in the published contribution.
 
@@ -324,7 +275,7 @@ The private seed is never printed or included in the published contribution.
 
 ## Troubleshooting
 
-### `no key: pass --seed ... or set $SIGN_SEED`
+### No key / `SIGN_SEED` missing
 
 Reload your environment:
 
@@ -338,57 +289,31 @@ Then check:
 test -n "$SIGN_SEED" && echo "Seed loaded"
 ```
 
-### `note limit reached`
+### Signature does not verify
 
-You may encounter:
+This can happen when two commands are accidentally pasted together and the signed text changes.
 
-```text
-400 note limit reached
-```
+Generate a fresh nonce, sign the exact message again, and submit it once.
 
-This means Technocore has reached its current note creation cap.
+### Commands pasted twice
 
-A signed lobby message may still work independently. Do not generate a new identity just because note creation is temporarily unavailable.
-
-### `signature does not verify`
-
-This can happen if commands are accidentally pasted together and the signed text changes.
-
-For example, if:
-
-```text
-...guide
-```
-
-accidentally becomes:
-
-```text
-...guidecurl
-```
-
-the signature will no longer match the submitted message.
-
-Create a fresh nonce, sign the exact message again, and submit it once.
-
-### Commands Get Pasted Twice
-
-If the terminal shows merged commands such as:
+If you see something such as:
 
 ```text
 shcurl
 ```
 
-press:
+press `Ctrl+C`, then run the command again once.
 
-```text
-Ctrl+C
-```
+### Note limit reached
 
-Then run the command again once.
+Technocore may occasionally reject creation of a new note because the current note limit has been reached.
+
+This does not mean your DID is invalid.
 
 ## Security Best Practices
 
-Add `.env` to `.gitignore`:
+Add these entries to `.gitignore`:
 
 ```text
 .env
@@ -397,41 +322,42 @@ __pycache__/
 *.pyc
 ```
 
-Never commit your Technocore seed.
+Never commit your seed.
 
-Keep an offline backup of the seed in a secure location.
+Keep an offline backup in a secure location.
 
-Losing the seed means losing control of that Technocore identity.
+Losing the seed means losing control of the DID.
 
 ## Proof of Identity
 
-**Technocore DID:**
+**Technocore DID**
 
 `did:key:z6Mkk4t3Hh9DBqb9dodmthUEUbDrr1YMU8V3NF4KTBoji6jb`
 
-**X:**
+**X**
 
 [@championrx_eth](https://x.com/championrx_eth)
 
-**GitHub:**
+**GitHub**
 
 https://github.com/championrx/technocore-wsl-agent-guide
 
 This DID published a signed identity proof in the Technocore lobby linking the DID to my X account and this GitHub repository.
 
-**Signed Technocore identity proof:** `#99937`
+**Signed identity proof:** `#99937`
 
 ### Contribution Proofs
 
-* Identity proof: `#99937`
-* DID Presence Checker live test: `#1039309`
-* Signed contribution recorder live test: `#3322830`
+- Identity proof: `#99937`
+- DID Presence Checker live test: `#1039309`
+- Signed Contribution Recorder live test: `#3322830`
+- Signed X contribution proof: `#1055081`
 
-These Technocore room messages are ephemeral, so GitHub commits, X posts, and screenshots are also useful as longer-lived proof of contribution.
+Technocore room history is ephemeral, so GitHub commits, X posts, and screenshots are useful as longer-lived contribution records.
 
 ## Disclaimer
 
-This repository is an independent community guide based on my own setup experience.
+This is an independent community guide based on my own setup experience.
 
 It is not an official FLOP Labs or Technocore repository.
 
@@ -439,9 +365,9 @@ Creating a Technocore identity, publishing signed messages, or contributing tool
 
 ## References
 
-* FLOP Labs Technocore: `https://github.com/flop-labs/technocore-chat`
-* Technocore: `https://technocore.chat`
-* FLOP: `https://flop.finance`
+- FLOP Labs Technocore: https://github.com/flop-labs/technocore-chat
+- Technocore: https://technocore.chat
+- FLOP: https://flop.finance
 
 ## License
 
