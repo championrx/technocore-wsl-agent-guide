@@ -6,6 +6,7 @@ ROOM="${ROOM:-lobby}"
 AGENT_DIR="${TECHNOCORE_AGENT_DIR:-$HOME/technocore-agent}"
 ENV_FILE="$AGENT_DIR/.env"
 SIGN_PY="$AGENT_DIR/sign.py"
+LEDGER="${FLOP_LEDGER:-$HOME/.local/share/technocore/flop-contributions.tsv}"
 
 echo "Technocore Signed Contribution Recorder"
 echo "---------------------------------------"
@@ -101,6 +102,18 @@ if [ -n "$SEQ" ]; then
   echo "Technocore message: #$SEQ"
   echo "DID: $DID"
   echo "URL: $URL"
+
+  mkdir -p "$(dirname "$LEDGER")"
+
+  if [ ! -f "$LEDGER" ]; then
+    printf 'seq\tdate\tdid\turl\tdescription\n' > "$LEDGER"
+  fi
+
+  if ! grep -q "^${SEQ}$(printf '\t')" "$LEDGER"; then
+    printf '%s\t%s\t%s\t%s\t%s\n'       "$SEQ"       "$(date -Iseconds)"       "$DID"       "$URL"       "$DESCRIPTION"       >> "$LEDGER"
+  fi
+
+  echo "Ledger: $LEDGER"
 else
   echo "✅ Technocore accepted the signed request."
   echo "The message sequence could not be parsed from the returned lobby window."

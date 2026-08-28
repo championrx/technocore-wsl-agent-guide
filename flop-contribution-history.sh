@@ -7,6 +7,7 @@ LIMIT="${LIMIT:-200}"
 AGENT_DIR="${TECHNOCORE_AGENT_DIR:-$HOME/technocore-agent}"
 ENV_FILE="$AGENT_DIR/.env"
 SIGN_PY="$AGENT_DIR/sign.py"
+LEDGER="${FLOP_LEDGER:-$HOME/.local/share/technocore/flop-contributions.tsv}"
 
 echo "FLOP Contribution History Viewer"
 echo "--------------------------------"
@@ -59,6 +60,42 @@ echo "Room:  $ROOM"
 echo "DID:   $DID"
 echo "Limit: $LIMIT recent messages"
 echo
+echo "Local ledger:"
+echo "$LEDGER"
+echo
+
+if [ -f "$LEDGER" ]; then
+  LOCAL_COUNT="$(
+    awk -F '\t' -v did="$DID" '
+      NR > 1 && $3 == did { count++ }
+      END { print count+0 }
+    ' "$LEDGER"
+  )"
+
+  if [ "$LOCAL_COUNT" -gt 0 ]; then
+    echo "✅ Local contribution history: $LOCAL_COUNT record(s)"
+    echo
+
+    awk -F '\t' -v did="$DID" '
+      NR > 1 && $3 == did {
+        print "Message #" $1
+        print "Date: " $2
+        print "URL: " $4
+        print "Description: " $5
+        print "----------------------------------------"
+      }
+    ' "$LEDGER"
+
+    echo
+  else
+    echo "No local ledger records found for this DID."
+    echo
+  fi
+else
+  echo "No local FLOP ledger exists yet."
+  echo
+fi
+
 echo "Fetching Technocore activity..."
 
 RESPONSE="$(
