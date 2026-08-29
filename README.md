@@ -17,6 +17,7 @@ By the end of this guide you will have:
 - A signed Technocore lobby check-in
 - A DID activity checker
 - A signed contribution recorder
+- Portable public-safe contribution receipts and a verifier
 
 ## 1. Install WSL Ubuntu
 
@@ -268,8 +269,42 @@ The script:
 - signs the contribution
 - publishes it to the Technocore lobby
 - returns the Technocore message sequence when available
+- writes a JSON receipt under `~/.local/share/technocore/receipts/`
+- keeps the existing TSV ledger at `~/.local/share/technocore/flop-contributions.tsv`
 
 The private seed is never printed or included in the published contribution.
+It is also never included in either local record. Each JSON receipt contains the
+room, public DID, nonce, signature, exact text that was signed, timestamp,
+contribution URL, description, and the message sequence when Technocore returns
+one. JSON encoding safely preserves quotes, newlines, Unicode, and other text.
+
+To choose another receipt directory, set `TECHNOCORE_RECEIPT_DIR`. The existing
+`FLOP_LEDGER` override continues to control only the TSV ledger location.
+
+## Verify a Contribution Receipt
+
+The verifier uses only the receipt's public `did:key`, signature, and signed
+fields. It does not load `.env`, read `SIGN_SEED`, contact Technocore, or require
+the original signer. Download it in WSL/Linux:
+
+```bash
+curl -L https://raw.githubusercontent.com/championrx/technocore-wsl-agent-guide/main/verify-technocore-receipt.py \
+-o ~/technocore-agent/verify-technocore-receipt.py
+
+chmod +x ~/technocore-agent/verify-technocore-receipt.py
+```
+
+Verify a receipt by path:
+
+```bash
+uv run --python 3.12 ~/technocore-agent/verify-technocore-receipt.py \
+~/.local/share/technocore/receipts/RECEIPT.json
+```
+
+A valid receipt prints `VALID`. Changing the room, DID, nonce, signature,
+signed text, contribution URL, or description makes verification fail. The
+sequence and timestamp are useful receipt metadata but are not part of
+Technocore's signed message format.
 
 **Live test proof:** `#3322830`
 

@@ -7,6 +7,7 @@ AGENT_DIR="${TECHNOCORE_AGENT_DIR:-$HOME/technocore-agent}"
 ENV_FILE="$AGENT_DIR/.env"
 SIGN_PY="$AGENT_DIR/sign.py"
 LEDGER="${FLOP_LEDGER:-$HOME/.local/share/technocore/flop-contributions.tsv}"
+RECEIPT_DIR="${TECHNOCORE_RECEIPT_DIR:-$HOME/.local/share/technocore/receipts}"
 
 echo "Technocore Signed Contribution Recorder"
 echo "---------------------------------------"
@@ -28,7 +29,7 @@ if [[ ! "$URL" =~ ^https?:// ]]; then
   exit 1
 fi
 
-for cmd in curl uv jq; do
+for cmd in curl uv jq python3; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Error: $cmd is not installed."
     exit 1
@@ -94,6 +95,46 @@ RESPONSE="$(
 
 MATCH="$(printf '%s\n' "$RESPONSE" | grep -F "$TEXT" | tail -n 1 || true)"
 SEQ="$(printf '%s\n' "$MATCH" | sed -n 's/^\[\([0-9][0-9]*\)\].*/\1/p')"
+RECORDED_AT="$(date -Iseconds)"
+
+# sign.py signs the server's single-line, Unicode-aware sweep of the text.
+# Store that exact value so the receipt can be verified without a private key.
+EXACT_SIGNED_TEXT="$(
+  python3 -c '
+import sys, unicodedata
+text = sys.argv[1]
+print("".join(" " if unicodedata.category(c) in {"Cc", "Cf", "Cs", "Co", "Zl", "Zp"} else c for c in text).strip())
+' "$TEXT"
+)"
+
+mkdir -p "$RECEIPT_DIR"
+RECEIPT_FILE="$RECEIPT_DIR/${SEQ:+${SEQ}-}${NONCE}.json"
+RECEIPT_TMP="$(mktemp "$RECEIPT_DIR/.receipt.XXXXXX")"
+trap 'rm -f "$RECEIPT_TMP"' EXIT
+
+jq -n \
+  --arg room "$ROOM" \
+  --arg did "$DID" \
+  --arg nonce "$NONCE" \
+  --arg signature "$SIG" \
+  --arg exact_signed_text "$EXACT_SIGNED_TEXT" \
+  --arg sequence "$SEQ" \
+  --arg recorded_at "$RECORDED_AT" \
+  --arg contribution_url "$URL" \
+  --arg description "$DESCRIPTION" \
+  '{
+    room: $room,
+    did: $did,
+    nonce: $nonce,
+    signature: $signature,
+    exact_signed_text: $exact_signed_text,
+    recorded_at: $recorded_at,
+    contribution_url: $contribution_url,
+    description: $description
+  } + (if $sequence == "" then {} else {sequence: ($sequence | tonumber)} end)' \
+  > "$RECEIPT_TMP"
+mv "$RECEIPT_TMP" "$RECEIPT_FILE"
+trap - EXIT
 
 echo
 
@@ -110,7 +151,7 @@ if [ -n "$SEQ" ]; then
   fi
 
   if ! grep -q "^${SEQ}$(printf '\t')" "$LEDGER"; then
-    printf '%s\t%s\t%s\t%s\t%s\n'       "$SEQ"       "$(date -Iseconds)"       "$DID"       "$URL"       "$DESCRIPTION"       >> "$LEDGER"
+    printf '%s\t%s\t%s\t%s\t%s\n'       "$SEQ"       "$RECORDED_AT"       "$DID"       "$URL"       "$DESCRIPTION"       >> "$LEDGER"
   fi
 
   echo "Ledger: $LEDGER"
@@ -118,3 +159,5 @@ else
   echo "✅ Technocore accepted the signed request."
   echo "The message sequence could not be parsed from the returned lobby window."
 fi
+
+echo "Receipt: $RECEIPT_FILE"
